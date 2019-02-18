@@ -1,0 +1,45 @@
+type setting = { recv_buffer_bytes : int; timeout_ms : int; }
+
+val default_settings : setting
+
+val init : unit -> unit
+
+val with_curl :
+  ?settings:setting ->
+  string -> (Buffer.t -> Curl.t -> 'a Lwt.t) -> 'a Lwt.t
+
+val request :
+  Buffer.t -> Curl.t -> (int * string, int * string) result Lwt.t
+
+val get :
+  ?headers:string list ->
+  ?settings:setting ->
+  string -> (int * string, int * string) result Lwt.t
+
+val post :
+  ?content_type:string ->
+  ?headers:string list ->
+  ?settings:setting ->
+  string -> string -> (int * string, int * string) result Lwt.t
+
+val patch :
+  ?content_type:string ->
+  ?headers:string list ->
+  ?settings:setting ->
+  string -> string -> (int * string, int * string) result Lwt.t
+
+val put :
+  ?content_type:string ->
+  ?headers:string list ->
+  ?settings:setting ->
+  string -> string -> (int * string, int * string) result Lwt.t
+
+val delete :
+  ?headers:string list ->
+  ?settings:setting ->
+  string -> (int * string, int * string) result Lwt.t
+
+val from_resp :
+  (Yojson.Safe.t -> ('a, string) result) ->
+  (int * string, int * string) result Lwt.t -> ('a, string) result Lwt.t
+
