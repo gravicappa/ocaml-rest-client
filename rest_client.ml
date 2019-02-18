@@ -4,6 +4,8 @@ type setting = {
   timeout_ms: int;
 }
 
+type header = string * string
+
 let default_settings = {
   recv_buffer_bytes = 16384;
   timeout_ms = 1200;
@@ -30,10 +32,14 @@ let init_connection ?(settings = default_settings) url =
     Curl.set_url c url;
     recv_buf, c
 
+let string_of_header (k, v) = k ^ ": " ^ v
+
 let set_headers c headers =
-  match headers with
+  List.map string_of_header headers |> Curl.set_httpheader c
+
+let set_opt_headers c = function
   | None -> ()
-  | Some h -> Curl.set_httpheader c h
+  | Some h -> set_headers c h
 
 let init () =
   Curl.global_init Curl.CURLINIT_GLOBALALL;
@@ -56,13 +62,16 @@ let request recv_buf c =
 
 let get ?headers ?(settings = default_settings) url =
   with_curl ~settings url @@ fun recv_buf c ->
-    set_headers c headers;
+    set_opt_headers c headers;
     Curl.set_followlocation c true;
     request recv_buf c
 
+let set_headers_w_content_type c content_type headers =
+  (("Content-Type", content_type) :: headers) |> set_headers c
+
 let perform_post ?(content_type = "application/json") ?(headers = []) c
     recv_buf data =
-  Curl.set_httpheader c ([ "Content-Type: " ^ content_type ] @ headers);
+  set_headers_w_content_type c content_type headers;
   Curl.set_postfields c data;
   Curl.set_postfieldsize c (String.length data);
   request recv_buf c
@@ -102,14 +111,14 @@ let put ?(content_type = "application/json")
     Curl.set_put c true;
     Curl.set_upload c true;
     Curl.set_readfunction c rf;
-    Curl.set_httpheader c (["Content-Type: " ^ content_type] @ headers);
+    set_headers_w_content_type c content_type headers;
     request recv_buf c
 
 let delete ?headers ?(settings = default_settings) url =
   with_curl ~settings url @@ fun recv_buf c ->
     Curl.set_customrequest c "DELETE";
     Curl.set_followlocation c false;
-    set_headers c headers;
+    set_opt_headers c headers;
     request recv_buf c
 
 let from_resp proc = Lwt.map @@ function

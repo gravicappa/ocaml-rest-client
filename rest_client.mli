@@ -1,4 +1,9 @@
-type setting = { recv_buffer_bytes : int; timeout_ms : int; }
+type setting = {
+  recv_buffer_bytes: int;
+  timeout_ms: int;
+}
+
+type header = string * string
 
 val default_settings : setting
 
@@ -12,30 +17,30 @@ val request :
   Buffer.t -> Curl.t -> (int * string, int * string) result Lwt.t
 
 val get :
-  ?headers:string list ->
+  ?headers:header list ->
   ?settings:setting ->
   string -> (int * string, int * string) result Lwt.t
 
 val post :
   ?content_type:string ->
-  ?headers:string list ->
+  ?headers:header list ->
   ?settings:setting ->
   string -> string -> (int * string, int * string) result Lwt.t
 
 val patch :
   ?content_type:string ->
-  ?headers:string list ->
+  ?headers:header list ->
   ?settings:setting ->
   string -> string -> (int * string, int * string) result Lwt.t
 
 val put :
   ?content_type:string ->
-  ?headers:string list ->
+  ?headers:header list ->
   ?settings:setting ->
   string -> string -> (int * string, int * string) result Lwt.t
 
 val delete :
-  ?headers:string list ->
+  ?headers:header list ->
   ?settings:setting ->
   string -> (int * string, int * string) result Lwt.t
 
