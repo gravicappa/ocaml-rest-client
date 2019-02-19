@@ -45,6 +45,6 @@ val delete :
   string -> (int * string, int * string) result Lwt.t
 
 val from_resp :
-  (Yojson.Safe.t -> ('a, string) result) ->
+  (Yojson.Safe.json -> ('a, string) result) ->
   (int * string, int * string) result Lwt.t -> ('a, string) result Lwt.t
 

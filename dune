@@ -1,5 +1,6 @@
 (library
  (name rest_client)
  (public_name rest-client)
- (libraries curl yojson)
- (preprocess (pps lwt_ppx)))
+ (libraries curl.lwt yojson)
+ (preprocess (pps lwt_ppx))
+ (flags (:standard -w -3)))
