@@ -7,4 +7,5 @@ authors: "Ramil Farkhshatov <ramil.fh@ya.ru>"
 license: "LGPLv3 with OpenSSL linking exception"
 build: ["dune" "build" "-p" name "-j" jobs]
 depends: ["ocurl"
-          "yojson"]
+          "yojson"
+          "lwt_ppx"]
