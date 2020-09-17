@@ -1,7 +1,7 @@
-
 type setting = {
   recv_buffer_bytes: int;
   timeout_ms: int;
+  setup: Curl.t -> unit;
 }
 
 type header = string * string
@@ -9,37 +9,33 @@ type header = string * string
 let default_settings = {
   recv_buffer_bytes = 16384;
   timeout_ms = 1200;
+  setup = fun _ -> ();
 }
 
 let init_connection ?(settings = default_settings) url =
   let recv_buf = Buffer.create settings.recv_buffer_bytes in
-
-  let apply_settings c {timeout_ms; _} =
-    Curl.set_timeout c timeout_ms in
 
   let writer_callback a d =
     Buffer.add_string a d;
     String.length d in
 
   let c = Curl.init () in
-    apply_settings c settings;
-    Curl.set_sslverifypeer c false;
-    Curl.set_sslverifyhost c Curl.SSLVERIFYHOST_EXISTENCE;
-    Curl.set_writefunction c (writer_callback recv_buf);
-    Curl.set_tcpnodelay c true;
-    Curl.set_verbose c false;
-    Curl.set_post c false;
-    Curl.set_url c url;
-    recv_buf, c
+  Curl.set_timeout c settings.timeout_ms;
+  Curl.set_sslverifypeer c false;
+  Curl.set_sslverifyhost c Curl.SSLVERIFYHOST_EXISTENCE;
+  Curl.set_writefunction c (writer_callback recv_buf);
+  Curl.set_tcpnodelay c true;
+  Curl.set_verbose c false;
+  Curl.set_post c false;
+  Curl.set_url c url;
+  Curl.set_maxredirs c 1;
+  settings.setup c;
+  recv_buf, c
 
 let string_of_header (k, v) = k ^ ": " ^ v
 
 let set_headers c headers =
   List.map string_of_header headers |> Curl.set_httpheader c
-
-let set_opt_headers c = function
-  | None -> ()
-  | Some h -> set_headers c h
 
 let init () =
   Curl.global_init Curl.CURLINIT_GLOBALALL;
@@ -50,19 +46,16 @@ let with_curl ?(settings = default_settings) url proc =
   Lwt.finalize (fun () -> proc recv_buf c)
                (fun () -> Curl.cleanup c |> Lwt.return)
 
-let to_result (code, data) =
-  if code >= 200 && code < 300 then
-    Ok (code, data) |> Lwt.return
-  else
-    Error (code, data) |> Lwt.return
-
 let request recv_buf c =
   let%lwt _ = Curl_lwt.perform c in
-  (Curl.get_responsecode c, Buffer.contents recv_buf) |> to_result
+  let data = Buffer.contents recv_buf in
+  match Curl.get_responsecode c with
+  | code when code >= 200 && code < 300 -> Lwt.return_ok (code, data)
+  | code -> Lwt.return_error (code, data)
 
-let get ?headers ?(settings = default_settings) url =
+let get ?(headers = []) ?(settings = default_settings) url =
   with_curl ~settings url @@ fun recv_buf c ->
-    set_opt_headers c headers;
+    set_headers c headers;
     Curl.set_followlocation c true;
     request recv_buf c
 
@@ -114,11 +107,11 @@ let put ?(content_type = "application/json")
     set_headers_w_content_type c content_type headers;
     request recv_buf c
 
-let delete ?headers ?(settings = default_settings) url =
+let delete ?(headers = []) ?(settings = default_settings) url =
   with_curl ~settings url @@ fun recv_buf c ->
     Curl.set_customrequest c "DELETE";
     Curl.set_followlocation c false;
-    set_opt_headers c headers;
+    set_headers c headers;
     request recv_buf c
 
 let from_resp proc = Lwt.map @@ function

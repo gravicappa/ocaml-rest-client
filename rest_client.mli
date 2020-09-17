@@ -1,6 +1,7 @@
 type setting = {
   recv_buffer_bytes: int;
   timeout_ms: int;
+  setup: Curl.t -> unit;
 }
 
 type header = string * string
