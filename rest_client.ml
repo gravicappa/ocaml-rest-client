@@ -59,6 +59,16 @@ let get ?(headers = []) ?(settings = default_settings) url =
     Curl.set_followlocation c true;
     request recv_buf c
 
+let head ?(headers = []) ?(settings = default_settings) url =
+  with_curl ~settings url @@ fun recv_buf c ->
+    set_headers c headers;
+    Curl.set_followlocation c true;
+    Curl.set_customrequest c "HEAD";
+    let%lwt _ = Curl_lwt.perform c in
+    match Curl.get_responsecode c with
+    | code when code >= 200 && code < 300 -> Lwt.return_ok code
+    | code -> Lwt.return_error code
+
 let set_headers_w_content_type c content_type headers =
   (("Content-Type", content_type) :: headers) |> set_headers c
 
@@ -93,13 +103,16 @@ let put ?(content_type = "application/json")
         ?(settings = default_settings)
         url
         data =
-  let pos = ref 0
-  and len = String.length data in
+  let pos = ref 0 in
+
+  let len = String.length data in
+
   let rf cnt =
     let can_send = len - !pos in
     let to_send = if can_send > cnt then cnt else can_send in
     let r = String.sub data !pos to_send in
       pos := !pos + to_send; r in
+
   with_curl ~settings url @@ fun recv_buf c ->
     Curl.set_put c true;
     Curl.set_upload c true;

@@ -22,6 +22,11 @@ val get :
   ?settings:setting ->
   string -> (int * string, int * string) result Lwt.t
 
+val head :
+  ?headers:header list ->
+  ?settings:setting ->
+  string -> (int, int) result Lwt.t
+
 val post :
   ?content_type:string ->
   ?headers:header list ->
