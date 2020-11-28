@@ -12,6 +12,16 @@ let default_settings = {
   setup = fun _ -> ();
 }
 
+let init =
+  let initialised = ref false in
+  fun () ->
+    match !initialised with
+    | true -> ()
+    | false ->
+      Curl.global_init Curl.CURLINIT_GLOBALALL;
+      at_exit Curl.global_cleanup;
+      initialised := true
+
 let init_connection ?(settings = default_settings) url =
   let recv_buf = Buffer.create settings.recv_buffer_bytes in
 
@@ -19,6 +29,7 @@ let init_connection ?(settings = default_settings) url =
     Buffer.add_string a d;
     String.length d in
 
+  init ();
   let c = Curl.init () in
   Curl.set_timeout c settings.timeout_ms;
   Curl.set_sslverifypeer c false;
@@ -37,14 +48,12 @@ let string_of_header (k, v) = k ^ ": " ^ v
 let set_headers c headers =
   List.map string_of_header headers |> Curl.set_httpheader c
 
-let init () =
-  Curl.global_init Curl.CURLINIT_GLOBALALL;
-  at_exit Curl.global_cleanup
-
 let with_curl ?(settings = default_settings) url proc =
   let recv_buf, c = init_connection ~settings url in
   Lwt.finalize (fun () -> proc recv_buf c)
-               (fun () -> Curl.cleanup c |> Lwt.return)
+               (fun () ->
+                 Curl.cleanup c;
+                 Lwt.return_unit)
 
 let request recv_buf c =
   let%lwt _ = Curl_lwt.perform c in
